@@ -1,0 +1,84 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# Enable or disable the ASUS R510D Touchpad.
+# ----------------------------------------------------------------------------
+# V1.0 - 11 Sep 2016
+# ----------------------------------------------------------------------------
+# John Fogarty - MIT License or
+# Free License 1.0.0 - NO rights reserved.
+# ----------------------------------------------------------------------------
+
+fullScriptName=$_
+scriptName=$0
+
+device=
+declare -a devNames
+
+# On my ASUS 510D the pad driver was fubar so I disabled it in GRUB so
+# it falls back on being a Generic Mouse.
+devNames+=("Touchpad")
+devNames+=("PS/2 Generic Mouse")
+
+#------------------------------------------------------------------------
+# Scan the X list looking for matching device names and get the id.
+getDevice()
+{
+    for devName in "${devNames[@]}"
+	do
+		device=`xinput --list | grep "$devName"|cut -s -d= -f2|cut -c1,2`
+		if [ x"$device" != x ]; then
+			return
+		fi
+	done
+	echo "* Warning - no Touchpad device number discovered."
+}
+
+#------------------------------------------------------------------------
+# Enable or disable the specified device ID.
+setPad()
+{
+	local onv=$1
+	local v
+    if [ x"$device" == x ]; then
+    	echo "* Error - no Touchpad device number discovered."
+    	exit 1
+    fi
+
+	if [ x"$onv" == "xoff" ] || [ x"$onv" == "x0" ]; then
+		echo "- Disable touchpad"
+		v=0
+	else
+		echo "- Enable touchpad"
+		v=1
+	fi
+	xinput set-prop $device "Device Enabled" $v
+}
+
+#------------------------------------------------------------------------
+scriptUsage()
+{
+	echo "Usage: $scriptName [off|on]"
+	echo "Enable or disable the ASUS R510D Touchpad"
+	echo ""
+	xinput list
+	echo ""
+	echo "Touchpad is device [$device]"
+	exit
+}
+
+#------------------------------------------------------------------------
+main()
+{
+	local vv=$1
+	getDevice
+	[ x"$vv" == x ]       && scriptUsage 
+	[ "$vv" == "?" ]      && scriptUsage
+	[ "$vv" == "-h" ]     && scriptUsage
+	[ "$vv" == "-?" ]     && scriptUsage
+	[ "$vv" == "--help" ] && scriptUsage
+	setPad $vv
+	exit 0
+}
+
+#------------------------------------------------------------------------
+main $1

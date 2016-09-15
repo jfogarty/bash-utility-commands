@@ -1,0 +1,136 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# mkdir command alias.
+# ----------------------------------------------------------------------------
+# V1.0 - 2 Jul 2016
+# ----------------------------------------------------------------------------
+# John Fogarty - MIT License or
+# Free License 1.0.0 - NO rights reserved.
+# ----------------------------------------------------------------------------
+
+declare fullScriptName=$_
+declare scriptName=$(basename $0)
+
+declare version="1.0.0"
+
+#------------------------------------------------------------------------
+# Make the command line arguments (with quotes) available in globals
+declare -a args
+declare -a switches
+declare -a options
+allargs=
+space=""
+args+=("$0")  # Put the script path in ${args[0]}
+whitespace="[[:space:]]"
+allowswitch=true
+wantHelp=false
+wantVersion=false
+
+# Test switches with [[ $switches =~ s ]] where s is the switch char.
+# Options require lookup in the Options array.
+for i in "$@"; do
+	if [ allowswitch ] && [[ "${i:0:1}" == "-" ]]; then
+		i=${i:1}
+		if [[ "${i:0:1}" == "-" ]]; then
+			i=${i:1}
+			if [[ -z "${i// }" ]]; then
+				# END OF OPTIONS --
+				allowswitch=false
+		    else
+				options+=("$i")
+				if [ "$i" == "help" ]; then wantHelp=true; fi
+				if [ "$i" == "version" ]; then wantVersion=true; fi
+			fi
+		else
+			switches+="$i"
+			
+		fi
+	else
+	    if [[ $i =~ $whitespace ]]; then
+	        i=\"$i\"
+	    fi
+	    args+=("$i")
+	    allargs+="$space$i"
+	    space=" "
+	fi
+done
+[[ "$switches" == *[h\?]* ]] && wantHelp=true;
+[[ "$switches" == *[v]* ]]   && wantVersion=true;
+
+
+#------------------------------------------------------------------------
+showArgs()
+{
+	local optName
+	local argValue
+	if [[ -z "${switches// }" ]]; then
+		echo "- No switches in command line."
+	else
+		echo "- Switches:[$switches]"
+	fi
+	for optName in "${options[@]}"; do
+		echo "- Option:[--$optName]"
+	done
+	i=0
+	for argValue in "${args[@]}"; do
+		echo "- args[$i]:[$argValue]"
+		i=$(( i + 1 ))
+	done
+}
+
+#------------------------------------------------------------------------
+# return 0 (success) if hasOption "optionName" is found.
+hasOption()
+{
+	local optName=$1
+	local value
+	for value in "${options[@]}"; do
+        [[ $value == "$optName" ]] && return 0
+    done
+    return 1
+}
+
+#------------------------------------------------------------------------
+# return 0 (success) if $switches contains the char.
+hasSwitch()
+{
+	local switch=$1
+    [[ $switches =~ "$switch" ]] && return 0
+    return 1
+}
+
+#------------------------------------------------------------------------
+scriptUsage()
+{
+	echo "Usage: $scriptName [OPTION]... DIRECTORY..."
+	echo "Create the DIRECTORY(ies), if they do not already exist."
+	echo "This always creates the parent directories as required."
+	echo ""
+	echo "A short form of mkdir with fewer options."
+	echo "  -h, --help     display this help and exit"
+	echo "  -v, --version  output version information and exit"
+	echo "  -t, --trial    trial mode. Show the commands that would execute"
+	echo ""
+}
+
+#------------------------------------------------------------------------
+main()
+{
+	if [[ -z "$allargs" ]] || [[ $wantHelp == true ]]; then
+		scriptUsage 
+		exit
+	fi
+	if [ $wantVersion == true ]; then
+		echo $version
+		exit
+	fi
+
+	hasOption "trial" && echo "TRIAL -- mkdir -vp $allargs" && exit
+	hasSwitch "t"     && echo "TRIAL -- mkdir -vp $allargs" && exit
+	mkdir -vp $allargs
+	exit 0
+}
+
+#------------------------------------------------------------------------
+#showArgs
+main

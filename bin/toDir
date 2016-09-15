@@ -1,0 +1,167 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# Go to a directory based on past history.
+# ----------------------------------------------------------------------------
+# V1.0 - 11 Sep 2016
+# ----------------------------------------------------------------------------
+# John Fogarty - MIT License or
+# Free License 1.0.0 - NO rights reserved.
+# ----------------------------------------------------------------------------
+
+declare fullScriptName=$_
+declare scriptName=$(basename $0)
+declare docName="toDir"
+
+declare verbose=0
+declare trial=0
+declare quiet=0
+declare inshell=0
+declare memoFile="~/etc/toDirs.txt"
+memoFile="${memoFile/#\~/$HOME}"
+
+#------------------------------------------------------------------------
+# Terminate the script or the command shell
+function sexit()
+{
+    export rval=$1
+    if [[ $inshell -eq 1 ]]; then
+        kill -INT $$
+    fi
+    exit $1
+}
+
+# echo text if not quiet
+function qecho()
+{
+	if [[ $quiet -eq 0 ]]; then
+		echo "$@"
+	fi
+}
+
+# echo text if in verbose mode.
+function vecho()
+{
+	if [[ $verbose -eq 1 ]]; then
+		echo "$@"
+	fi
+}
+
+# execute a command (or display it if not sourced to the shell.
+function runinshell()
+{
+	if [[ $inshell -eq 1 ]]; then
+		vecho "eval: $@"
+		eval $@
+	else
+		qecho "$@"
+	fi
+}
+
+# prepend a line to the start of a file.
+function prependLine()
+{
+	local line="$1"
+	local theFile="$2"
+	echo "$line"|cat - "$theFile" > /tmp/out && mv /tmp/out "$theFile"
+}
+
+# remove a matching line from anywhere in the file.
+function removeLine()
+{
+	local line="${1//\//\\\/}"
+	local theFile="$2"
+	sed "/^$line\$/d" "$memoFile" > /tmp/out && mv /tmp/out "$theFile"
+}
+
+#------------------------------------------------------------------------
+function scriptUsage()
+{
+    echo "Usage: . $docName [options] [dir]"
+    echo "Go to a recently used directory."
+    echo ""
+    echo "-q             quiet output - only errors displayed."
+    echo "-v             verbose output during command execution."
+    echo ""
+    echo "Each time you use '$docName', the current directory is put at the"
+    echo "top of a list of available directories.  The 'dir' you specify is"
+    echo "looked up in the list and chdir to that directory is issued."
+    echo ""
+    vecho "NOTE you must source command with the prefixed '. ' or source:"
+    vecho ""
+    vecho "    . $docName [options] [dir]"
+    vecho ""
+    vecho "otherwise the cd command will just be displayed and you will"
+    vecho "stay in the current directory."
+    vecho ""
+    vecho "I place an alias t=. $docName in my .bashrc file for convenience."
+    vecho ""
+    sexit 1
+}
+
+function main()
+{
+	local dirName="$1"
+	local wd=`pwd`
+
+	if [[ -e "$memoFile" ]]; then
+		# ----- Add the current directory to the top of the directory list.
+		if grep -qx "$wd" "$memoFile"; then
+			removeLine "$wd" "$memoFile"
+		    prependLine "$wd" "$memoFile"			
+		else
+		    prependLine "$wd" "$memoFile"
+		fi
+	else
+		vecho "- New memo file: [$memoFile]"
+		echo "$wd" > "$memoFile"
+	fi
+
+	vecho memoFile="$memoFile"
+
+	local dest
+	if [[ "x$dirName" != x ]]; then
+		if [[ "$dirName" == "?" ]]; then
+			scriptUsage
+		fi
+		#echo "* Try to find [$dirName]"
+		if grep -q "$dirName$" "$memoFile"; then
+			vecho "* FOUND [$dirName]"
+			dest=`grep -m1 "$dirName$" "$memoFile"`
+		else
+			if grep -q "$dirName" "$memoFile"; then
+				#echo "* FOUND [$dirName]"
+				dest=`grep -m1 "$dirName" "$memoFile"`
+			else
+				echo "Sorry, [$dirName] not found in $memoFile."
+				if [[ $verbose -eq 1 ]]; then
+					cat "$memoFile"
+				fi
+			fi
+		fi
+		if [[ "x$dest" != x ]]; then 
+			runinshell "cd \"$dest\""
+		fi
+	fi
+}
+
+if [[ "$scriptName" == "bash" ]]; then
+    inshell=1
+fi
+OPTIND=1 # Reset in case getopts has been used previously in the shell.
+while getopts "h?qvt" opt; do
+    case "$opt" in
+        v)  verbose=1
+            ;;
+        q)  quiet=1
+            ;;
+        t)  trial=1
+            ;;    	
+        h|\?)
+            scriptUsage
+            sexit 0
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+main "$@"

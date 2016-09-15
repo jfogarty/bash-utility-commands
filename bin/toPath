@@ -1,0 +1,387 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# Display and modify the a PATH environment variable.
+# ----------------------------------------------------------------------------
+# V0.9 - 9 Sep 2016
+# ----------------------------------------------------------------------------
+# John Fogarty - MIT License or
+# Free License 1.0.0 - NO rights reserved.
+# ----------------------------------------------------------------------------
+
+declare fullScriptName=$_
+declare scriptName=$(basename $0)
+declare docName="toPath"
+
+declare pathVar
+declare tempVar
+declare -a pathDirectories
+declare -a newDirectories
+
+declare isAppend=0
+declare isDelete=0
+declare isClean=0
+declare verbose=0
+declare terse=0
+declare quiet=0
+
+declare -a ra=0
+declare rv=0
+
+declare didSomething=0
+declare trialRun=0
+declare inshell=0
+
+#------------------------------------------------------------------------
+# Terminate the script or the command shell
+function sexit()
+{
+    export rval=$1
+    if [[ $inshell -eq 1 ]]; then
+        kill -INT $$
+    fi
+    exit $1
+}
+
+# echo text if not quiet
+function qecho()
+{
+    if [[ $quiet -eq 0 ]]; then
+        echo "$@"
+    fi
+}
+
+# echo text if in verbose mode.
+function vecho()
+{
+    if [[ $verbose -eq 1 ]]; then
+        echo "$@"
+    fi
+}
+
+#------------------------------------------------------------------------
+# Terminate the script with a failure message.
+function fail()
+{
+    local msg=$1
+    echo "[$scriptName] *** Failed: $msg"
+    sexit 666
+}
+
+#------------------------------------------------------------------------
+# Fail if a file doesn't exist.
+# requireFile 'file type description' PathToFile
+function requireFile()
+{
+	local fileType=$1
+	local fileName=$2
+    if [[ ! -e "$fileName" ]]; then
+        fail "$fileType input file '$fileName' does not exist"
+    fi
+}
+
+#------------------------------------------------------------------------
+# Fail if a directory doesn't exist.
+# requireDir 'directory type description' PathToDir
+function requireDir()
+{
+	local dirType=$1
+	local dirName=$2
+    if [[ ! -e "$dirName" ]]; then
+        fail "$dirType directory '$dirName' does not exist"
+    else
+        if [[ ! -d "$dirName" ]]; then
+            fail "$dirType '$dirName' is not a directory"
+        fi
+    fi
+}
+
+#------------------------------------------------------------------------
+# Fail if a directory does NOT contain a specific file.
+# checkDir DirectoryPath FileName
+function checkDir()
+{
+	local dirName=$1
+	local fileName=$2
+    if [[ -e "$dirName" ]]; then
+        local toFile="$dirName/$fileName"
+        if ! [[ -e "$toFile" ]]; then
+            echo "*** Suspicious target directory. Clear it yourself first."
+            fail "$toFile should exist."
+        fi
+    fi
+}
+
+#------------------------------------------------------------------------
+# Strip : and = from argument text
+function textArg()
+{
+    local theName=$1
+    if [[ ${theName:0:1} == ":" ]] ; then
+        theName=${theName:1}
+    fi
+    if [[ "${theName:0:1}" == "=" ]] ; then
+        theName=${theName:1}
+    fi
+    rv="$theName"
+}
+
+#------------------------------------------------------------------------
+# Run a command and sexit if any error code is returned.
+function run()
+{
+    if [[ $trialRun -ne 0 ]]; then
+        echo "--Run:[$@]"
+    else
+       vecho "- $@"
+       eval "$@"
+       local status=$?
+       if [[ $status -ne 0 ]]; then
+           echo "[$scriptName] *** Error with [$1]" >&2
+           sexit $status
+       fi
+       return $status
+    fi
+}
+
+#------------------------------------------------------------------------
+# Checks to see if an entry is in an array.
+# containsElement "text" "${arrayname[@]}"
+function containsElement ()
+{
+  local e
+  for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
+  return 1
+}
+
+#------------------------------------------------------------------------
+# Joins an array by a char - results in rv.
+# join_by "char" "${arrayname[@]}"
+function join_by 
+{
+    local IFS="$1"
+    shift
+    rv="$*"
+}
+
+#------------------------------------------------------------------------
+# Checks to see if a directory is the same as another.
+# return 0 (success) if the directories are the same
+function dirMatches
+{
+    local dir1=$1
+    local dir2=$2
+    if [[ -e "$dir1" ]] && [[ -e "$dir2" ]]; then
+        [[ "$(stat -c "%d:%i" $dir1)" == "$(stat -c "%d:%i" $dir2)" ]] && return 0
+    fi
+    return 1
+}
+
+#------------------------------------------------------------------------
+# Checks to see if a duplicate directory is in path.
+# return 0 (success) if duplicate exists
+function checkDup
+{
+    local dir=$1
+    local e
+    for e in "${newDirectories[@]}"; do
+        # dirMatches "$e" "$dir" && return 0;  TOO SLOW IN BIG PATH LISTS
+        [[ "$e" == "$dir" ]] && return 0; 
+    done
+    newDirectories+=($dir)
+    return 1
+}
+
+#------------------------------------------------------------------------
+# Display a path as multiple lines.
+function showPath
+{
+    local pvar=$1
+    local dirDesc
+    let lineno=0
+    local fixed=""
+    local contents=${!pvar}
+    newDirectories=()
+    IFS=':' read -r -a pathDirectories <<< "$contents"
+    if [[ $terse -eq 1 ]]; then
+        echo "${contents}"
+    else
+        for dir in "${pathDirectories[@]}"
+        do
+            let lineno+=1
+            dirDesc=""
+            if [[ -e "$dir" ]]; then
+                if [[ ! -d "$dir" ]]; then
+                    dirDesc="*NOT A DIRECTORY* $dirDesc"
+                    didSomething=1
+                else
+                    if checkDup "$dir" ; then
+                        dirDesc="*DUPILICATE* $dirDesc"
+                        didSomething=1
+                    fi
+                fi
+            else
+                dirDesc="*MISSING* $dirDesc"
+                didSomething=1
+            fi
+            fixed="    $lineno"
+            if [[ $verbose -eq 1 ]]; then 
+                qecho "${fixed:(-4)}: [$dir] $dirDesc"
+            else
+                echo "$dir $dirDesc"
+            fi
+        done
+    fi
+}
+
+#------------------------------------------------------------------------
+# Delete a directory from the path.
+function deleteFromPath
+{
+    local pvar=$1
+    local delDir=$2
+    local dirDesc
+    local fixed=""
+    local contents=${!pvar}
+    local ncopy=""
+    let copyno=1
+    newDirectories=()
+    IFS=':' read -r -a pathDirectories <<< "$contents"
+    for dir in "${pathDirectories[@]}" ; do
+        if dirMatches "$dir"  "$delDir" ]]; then
+            qecho "- Removing '$delDir' from '$pvar' $ncopy" 
+            let copyno+=1
+            ncopy="[Copy $copyno]"
+            didSomething=1
+        else
+            newDirectories+=($dir)
+        fi
+    done
+}
+
+#------------------------------------------------------------------------
+# Add a directory to the front or back of a path.
+function addToPath
+{
+    local pvar=$1
+    local addDir=$2
+    local append=$3
+    deleteFromPath "$pvar" "$addDir"
+    if [[ $append -eq 1 ]]; then 
+        newDirectories+=($addDir)
+    else
+        newDirectories=( "$addDir"  "${newDirectories[@]}" )
+    fi
+    didSomething=1
+    if [[ $verbose -eq 1 ]]; then
+        join_by ":" "${newDirectories[@]}"
+        showPath "rv"
+    fi
+}
+
+#------------------------------------------------------------------------
+function scriptUsage()
+{
+    echo "Usage: . $docName [options] [newdir]"
+    echo "Display or append to a PATH environment variable"
+    echo ""
+    echo "-a             append to the path (default: prepend)."
+    echo "-c             clean the path (remove duplicates and missing dirs)."
+    echo "-d             delete the specified path."
+    echo "-e[EnvVar]     select the variable to modify."
+    echo "-q             quiet output - only errors displayed."
+    echo "-t             terse - compact output."
+    echo "-v             verbose output during command execution."
+    echo ""
+    echo "The ${pathVar} variable (or the one selected by -e) is displayed or"
+    echo "modified. By default a new directory is prepended. Use -a to append"
+    echo "to the path."
+    echo ""
+    echo "NOTE to modify a PATH variable you must source the path command with:"
+    echo ""
+    echo "    . $docName [options] [dir]"
+    echo ""
+    echo "otherwise the result will just be the command needed to make the change"
+    echo "without actually doing it."
+    echo ""
+    echo "I place an alias path=. $docName in my .bashrc file for convenience."
+    echo ""
+    sexit 1
+}
+
+#------------------------------------------------------------------------
+function main()
+{
+    local dirName=$1
+    if [[ x$dirName == x ]]; then
+        vecho "- Current directories in [${pathVar}]."
+        showPath "$pathVar"
+        vecho "- Done [$scriptName] on '$pathVar'"
+        if [[ $isClean -eq 1 ]]; then
+            didSomething=1
+        fi
+    elif [[ $isDelete -eq 1 ]]; then
+        dirName="$(readlink -f "$dirName")"
+        deleteFromPath "$pathVar" "$dirName"
+        if [[ $verbose -eq 1 ]]; then
+            join_by ":" "${newDirectories[@]}"
+            showPath "rv"
+        fi        
+    else
+        dirName="$(readlink -f "$dirName")"
+        requireDir "Path Directory" "$dirName"
+        addToPath "$pathVar" "$dirName" $isAppend
+    fi
+
+    join_by ":" "${newDirectories[@]}"
+    local cmd="export $pathVar=$rv"
+    if [[ $didSomething -eq 1 ]]; then
+        if [[ $inshell -eq 1 ]]; then
+            run $cmd
+        else
+            echo $cmd   
+        fi
+    fi
+    sexit 0
+}
+
+pathVar="PATH"
+
+if [[ "$scriptName" == "pathappend" ]]; then
+    isAppend=1
+    inshell=0
+elif [[ "$scriptName" == "bash" ]]; then
+    isAppend=0
+    inshell=1
+else
+    isAppend=0
+    inshell=1
+fi
+
+OPTIND=1 # Reset in case getopts has been used previously in the shell.
+while getopts "h?acdvqte:" opt; do
+    case "$opt" in
+        h|\?)
+            scriptUsage
+            sexit 0
+            ;;
+        c)  isClean=1; quiet=1
+            ;;            
+        a)  isAppend=1
+            ;;            
+        d)  isDelete=1
+            ;;            
+        v)  verbose=1
+            ;;
+        q)  quiet=1
+            ;;
+        t)  terse=1
+            ;;
+        e)  textArg $OPTARG; pathVar="$rv"
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+main "$1" "$2"
+# - End of bash script.
+
