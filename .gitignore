@@ -43,3 +43,6 @@ Thumbs.db
 #vim files
 .*.sw?
 .*~
+
+#Johns local notes
+*.jf.txt
