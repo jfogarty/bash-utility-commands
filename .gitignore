@@ -9,7 +9,6 @@
 target/
 
 # Eclipse
-/bin/
 .classpath
 .project
 .settings/
