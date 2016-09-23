@@ -51,7 +51,9 @@ function runinshell()
 {
 	if [[ $inshell -eq 1 ]]; then
 		vecho "eval: $@"
-		eval $@
+		if [[ $trial -eq 0 ]]; then 
+    		eval $@
+    	fi
 	else
 		qecho "$@"
 	fi
@@ -79,6 +81,7 @@ function scriptUsage()
     echo "Usage: . $docName [options] [dir]"
     echo "Go to a recently used directory."
     echo ""
+    echo "-l             list the current memofile."
     echo "-q             quiet output - only errors displayed."
     echo "-v             verbose output during command execution."
     echo ""
@@ -94,8 +97,19 @@ function scriptUsage()
     vecho "stay in the current directory."
     vecho ""
     vecho "I place an alias t=. $docName in my .bashrc file for convenience."
+    vecho "Edit $memoFile if you need to remove some trash."
     vecho ""
     sexit 1
+}
+
+function addDir()
+{
+    local wd=`readlink -f "$1"`
+	# ----- Add the current directory to the top of the directory list.
+	if grep -qx "$wd" "$memoFile"; then
+		removeLine "$wd" "$memoFile"
+	fi
+    prependLine "$wd" "$memoFile"
 }
 
 function main()
@@ -104,14 +118,8 @@ function main()
 	local wd=`pwd`
 
 	if [[ -e "$memoFile" ]]; then
-		# ----- Add the current directory to the top of the directory list.
-		if grep -qx "$wd" "$memoFile"; then
-			removeLine "$wd" "$memoFile"
-		    prependLine "$wd" "$memoFile"			
-		else
-		    prependLine "$wd" "$memoFile"
-		fi
-	else
+    	addDir "$wd"
+   	else
 		vecho "- New memo file: [$memoFile]"
 		echo "$wd" > "$memoFile"
 	fi
@@ -119,12 +127,27 @@ function main()
 	vecho memoFile="$memoFile"
 
 	local dest
-	if [[ "x$dirName" != x ]]; then
+    local lineNumber=2
+	if [[ -n "$dirName" ]]; then
 		if [[ "$dirName" == "?" ]]; then
 			scriptUsage
 		fi
-		#echo "* Try to find [$dirName]"
-		if grep -q "$dirName$" "$memoFile"; then
+        #echo "* Try to find [$dirName]"
+        if [[ "$dirName" == ".." ]]; then
+	        dest=`sed "${lineNumber}q;d" "$memoFile"`
+   			addDir "$dest"
+            vecho "* POPTO [$dest]"		
+        elif [[ "$dirName" == "..." ]]; then
+            lineNumber=3
+	        dest=`sed "${lineNumber}q;d" "$memoFile"`
+   			addDir "$dest"
+            vecho "* POPTO [$dest]"		
+        elif [[ "$dirName" == "...." ]]; then
+            lineNumber=4
+	        dest=`sed "${lineNumber}q;d" "$memoFile"`
+   			addDir "$dest"
+            vecho "* POPTO [$dest]"		
+		elif grep -q "$dirName$" "$memoFile"; then
 			vecho "* FOUND [$dirName]"
 			dest=`grep -m1 "$dirName$" "$memoFile"`
 		else
@@ -132,14 +155,24 @@ function main()
 				#echo "* FOUND [$dirName]"
 				dest=`grep -m1 "$dirName" "$memoFile"`
 			else
-				echo "Sorry, [$dirName] not found in $memoFile."
-				if [[ $verbose -eq 1 ]]; then
-					cat "$memoFile"
+		        if [[ -d "$dirName" ]]; then
+           			dest=`readlink -f "$dirName"`
+           			addDir "$dest"
+                    vecho "* CHDIR [$dest]"
+           		else
+				    echo "Sorry, [$dirName] not found in $memoFile."
+				    if [[ $verbose -eq 1 ]]; then
+					    cat "$memoFile"
+				    fi
 				fi
 			fi
 		fi
-		if [[ "x$dest" != x ]]; then 
+		if [[ -n "$dest" ]]; then 
 			runinshell "cd \"$dest\""
+		fi
+	else
+		if [[ $verbose -eq 1 ]]; then
+		    cat "$memoFile"
 		fi
 	fi
 }
@@ -148,8 +181,12 @@ if [[ "$scriptName" == "bash" ]]; then
     inshell=1
 fi
 OPTIND=1 # Reset in case getopts has been used previously in the shell.
-while getopts "h?qvt" opt; do
+while getopts "hl?qvt" opt; do
     case "$opt" in
+        l)  echo "- memoFile="$memoFile""
+            cat "$memoFile"
+            sexit 0
+            ;;       
         v)  verbose=1
             ;;
         q)  quiet=1
