@@ -29,12 +29,15 @@ $ toDir -v?
 Usage: . toDir [options] [dir]
 Go to a recently used directory.
 
+-l             list the current memofile.
 -q             quiet output - only errors displayed.
 -v             verbose output during command execution.
 
 Each time you use 'toDir', the current directory is put at the
 top of a list of available directories.  The 'dir' you specify is
 looked up in the list and chdir to that directory is issued.
+You can also use any valid relative directory name.
+Use .. or ... or  .... to pop to previous directories.
 
 NOTE you must source command with the prefixed '. ' or source:
 
