@@ -14,6 +14,7 @@ Check the [releases page](https://github.com/jfogarty/bash-utility-commands/rele
 - **t** : Go to a directory with history and adaptation
 - **path** : Modify or display a path
 - **md** : Make a directory and subdirectories
+- **ipv6** : Dynamically enable and disable IPV6 interfaces
 - **tpad** : Enable or disable the touchpad
 
 Each command supports -? for documentation.
@@ -24,7 +25,7 @@ Since I'm a bad typist, I have trouble typing long path names. When navigating
 the shell I find this tool invaluable. Every time you use it the current
 directory is added to the memo file. Changing directories is done by typing either a bottom level directory or any part of the directory name. 
 
-```bash
+```
 $ toDir -v?
 Usage: . toDir [options] [dir]
 Go to a recently used directory.
@@ -59,7 +60,7 @@ directories, and these are noted. You can use '-c' to remove these errors.
 Specify a different PATH variable with '-e', and remove a directory from the
 list with '-d'.
 
-```bash
+```
 $ toPath -v?
 Usage: . toPath [options] [newdir]
 Display or append to a PATH environment variable
@@ -90,7 +91,7 @@ I place an alias path=. toPath in my .bashrc file for convenience.
 
 Trivial mkdir but has nice option handling for hacking.
 
-```bash
+```
 $ md -?
 Usage: md [OPTION]... DIRECTORY...
 Create the DIRECTORY(ies), if they do not already exist.
@@ -102,12 +103,37 @@ A short form of mkdir with fewer options.
   -t, --trial    trial mode. Show the commands that would execute
 ```
 
+
+### `ipv6`
+
+Convenient tool to dynamically enable and disable ipv6 interfaces.
+
+```
+Usage: ipv6 [options] [off|on]
+Display, enable or disable the IPV6 interfaces
+
+Options:
+
+  -a    control all interfaces
+  -e    control/list ethernet (cabled) interfaces
+  -w    list only wireless interfaces
+
+  -v    verbose output during command execution
+  -q    quiet mode. Disables all console output
+  -t    trial run -- commands are shown but not executed
+
+When no options are passed this displays the current
+IPV6 state for all interfaces. When off or on is passed
+this will control wireless interfaces only unless -e or -a
+have been used.
+```
+
 ### `tpad` 
 
 Utility to disable the annoying touchpad on my laptop when I'm using a mouse. 
 Should work on many systems, but you'll need to look at your devices to be sure.
 
-```bash
+```
 tpad -?
 Usage: /home/john/bin/tpad [off|on]
 Enable or disable the ASUS R510D Touchpad

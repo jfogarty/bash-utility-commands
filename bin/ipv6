@@ -1,0 +1,214 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# Enable or disable the IPV6.
+# ----------------------------------------------------------------------------
+# V1.0 - 20 Oct 2016
+# ----------------------------------------------------------------------------
+# John Fogarty - MIT License or
+# Free License 1.0.0 - NO rights reserved.
+# ----------------------------------------------------------------------------
+declare fullScriptName=$_
+declare scriptName=$(basename $0)
+declare trialRun=0
+declare verbose=0
+declare quiet=0
+declare list=0
+declare allInterfaces=0
+declare ethInterfaces=0
+declare wifiInterfaces=0
+declare interfaceTypes=""
+declare interfaceSubset=""
+
+#------------------------------------------------------------------------
+# Terminate the script with a failure message.
+
+# echo text if not quiet
+function qecho()
+{
+    if [[ $quiet -eq 0 ]]; then
+        echo "$@"
+    fi
+}
+
+# echo text if in verbose mode.
+function vecho()
+{
+    if [[ $verbose -eq 1 ]]; then
+        echo "$@"
+    fi
+}
+
+function qprintf()
+{
+    if [[ $quiet -eq 0 ]]; then
+        printf "$@"
+    fi
+}
+
+# printf text if in verbose mode.
+function vprintf()
+{
+    if [[ $verbose -eq 1 ]]; then
+        printf "$@"
+    fi
+}
+
+function fail()
+{
+    local msg=$1
+    qecho "[$scriptName] *** Failed: $msg"
+    exit 666
+}
+
+#------------------------------------------------------------------------
+# Run a command and exit if any error code is returned.
+function runIgnore()
+{
+    if [[ $trialRun -ne 0 ]]; then
+        qecho "--Run:[$@]"
+    else
+       vecho "- $@"
+       eval "$@"
+    fi
+}
+
+#------------------------------------------------------------------------
+# Run a command and exit if any error code is returned.
+function run()
+{
+    runIgnore "$@"
+    local status=$?
+    if [[ $status -ne 0 ]]; then
+        qecho "[$scriptName] *** Error with [$1]" >&2
+        exit $status
+    fi
+    return $status
+}
+
+#------------------------------------------------------------------------
+# Enable or disable IPV6 for all devices.
+function setIpv6()
+{
+	if [[ -z $interfaceTypes ]]; then
+		interfaceTypes="Wireless"
+		interfaceSubset="wlan"
+	fi
+	local onv=$1
+	local v=2
+	[[ ${onv,,} == "false" ]] && v=1
+	[[ ${onv,,} == "off"   ]] && v=1
+	[[ $onv == "0"         ]] && v=1
+    [[ ${onv,,} == "true"  ]] && v=0
+	[[ ${onv,,} == "on"    ]] && v=0
+	[[ $onv == "1"         ]] && v=0
+	if [[ $v -eq 1 ]]; then
+		qecho "- Disable ipv6 for $interfaceTypes interfaces"
+	elif [[ $v -eq 0 ]]; then
+		qecho "- Enable ipv6 for $interfaceTypes interfaces"
+	else
+		fail "Sorry, [$onv] is not a valid option. Type on, off, true, false, 0, 1"
+	fi
+	for d in /proc/sys/net/ipv6/conf/${interfaceSubset}*/ ; do
+		run "sudo sh -c 'echo $v > ${d}disable_ipv6'"
+	done	
+}
+
+#------------------------------------------------------------------------
+function showStatus()
+{
+	local msg="$1"
+	local ifce="$2"
+	local state="Disabled*"
+	local v=`cat ${ifce}disable_ipv6`
+	if [[ $v -eq 0 ]]; then state="Enabled"; fi
+    qprintf '%s' "$msg"
+    qprintf ' %-35s : ipv6 %-10s\n' "$ifce" "$state"
+}
+
+function listIpv6()
+{
+	if [[ -z $interfaceTypes ]]; then
+		interfaceTypes="All"
+		interfaceSubset=""
+	fi
+	vecho ""
+	vecho "- $interfaceTypes Interfaces:"
+	for d in /proc/sys/net/ipv6/conf/${interfaceSubset}*/ ; do
+	    showStatus "--- Interface:" "$d"
+	done
+	qecho ""
+}
+
+#------------------------------------------------------------------------
+function scriptUsage()
+{
+	echo "Usage: $scriptName [options] [off|on]"
+	echo "Display, enable or disable the IPV6 interfaces"
+	echo ""
+    echo "Options:"
+	echo ""
+	echo "  -a    control all interfaces"
+	echo "  -e    control/list ethernet (cabled) interfaces"
+	echo "  -w    list only wireless interfaces"
+	echo ""
+    echo "  -v    verbose output during command execution"
+    echo "  -q    quiet mode. Disables all console output"
+    echo "  -t    trial run -- commands are shown but not executed"
+	echo ""
+	echo "When no options are passed this displays the current"
+	echo "IPV6 state for all interfaces. When off or on is passed"
+	echo "this will control wireless interfaces only unless -e or -a"
+	echo "have been used."
+	exit
+}
+
+#------------------------------------------------------------------------
+function main()
+{
+	local vv=$1
+	if [[ -z $vv ]]; then listIpv6; else
+		if [[ -z $vv ]]; then scriptUsage; fi
+		[ "$vv" == "--help" ] && scriptUsage
+		setIpv6 $vv
+		vecho "- Done."
+	fi
+	exit 0
+}
+
+# sudo sh -c 'echo 1 > /proc/sys/net/ipv6/conf/<interface-name>/disable_ipv6'
+#sysctl net.ipv6.conf.all.disable_ipv6
+#sysctl net.ipv6.conf.default.disable_ipv6
+#sysctl net.ipv6.conf.lo.disable_ipv6
+
+#------------------------------------------------------------------------
+OPTIND=1 # Reset in case getopts has been used previously in the shell.
+while getopts "h?aewvqt" opt; do
+    case "$opt" in
+        h|\?)
+            scriptUsage
+            exit 0
+            ;;
+        a)  allInterfaces=1
+			interfaceTypes="All"
+			interfaceSubset=""
+            ;;   
+        e)  ethInterfaces=1
+			interfaceTypes="Ethernet"
+			interfaceSubset="eth"
+            ;;   
+        w)  wifiInterfaces=1
+			interfaceTypes="Wireless"
+			interfaceSubset="wlan"
+            ;;               
+        v)  verbose=1
+            ;;   
+        q)  quiet=1
+            ;;
+        t)  trialRun=1
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+main "$@"
+# - End of bash script.

@@ -148,7 +148,10 @@ function main()
             lineNumber=4
 	        dest=`sed "${lineNumber}q;d" "$memoFile"`
    			addDir "$dest"
-            vecho "* POPTO [$dest]"		
+            vecho "* POPTO [$dest]"
+		elif grep -q "/$dirName$" "$memoFile"; then
+			vecho "* FOUND [$dirName]"
+			dest=`grep -m1 "/$dirName$" "$memoFile"`            
 		elif grep -q "$dirName$" "$memoFile"; then
 			vecho "* FOUND [$dirName]"
 			dest=`grep -m1 "$dirName$" "$memoFile"`

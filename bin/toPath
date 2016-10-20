@@ -247,7 +247,7 @@ function deleteFromPath
     newDirectories=()
     IFS=':' read -r -a pathDirectories <<< "$contents"
     for dir in "${pathDirectories[@]}" ; do
-        if dirMatches "$dir"  "$delDir" ]]; then
+        if dirMatches "$dir"  "$delDir" ; then
             qecho "- Removing '$delDir' from '$pvar' $ncopy" 
             let copyno+=1
             ncopy="[Copy $copyno]"
