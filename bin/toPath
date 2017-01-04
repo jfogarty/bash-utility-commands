@@ -1,6 +1,6 @@
 #!/bin/bash
 # ----------------------------------------------------------------------------
-# Display and modify the a PATH environment variable.
+# Display and modify a PATH environment variable.
 # ----------------------------------------------------------------------------
 # V1.0 - 03 Jan 2017
 # ----------------------------------------------------------------------------
@@ -29,16 +29,16 @@ declare rv=0
 declare didSomething=0
 declare trialRun=0
 declare inshell=0
+declare exiting=0
+declare rval=0
 
 #------------------------------------------------------------------------
 # Terminate the script or the command shell
+#   Usage: sexit [value]; if [[ $exiting -ne 0 ]]; then return; fi
 function sexit()
 {
-    export rval=$1
-    if [[ $inshell -eq 1 ]]; then
-        kill -INT $$
-    fi
-    exit $1
+    rval=$1
+    exiting=1
 }
 
 # echo text if not quiet
@@ -137,8 +137,9 @@ function run()
        if [[ $status -ne 0 ]]; then
            echo "[$scriptName] *** Error with [$1]" >&2
            sexit $status
+       else           
+           return $status
        fi
-       return $status
     fi
 }
 
@@ -328,6 +329,7 @@ function main()
     else
         dirName="$(readlink -f "$dirName")"
         requireDir "Path Directory" "$dirName"
+        if [[ $exiting -ne 0 ]]; then return; fi
         addToPath "$pathVar" "$dirName" $isAppend
     fi
 
@@ -340,7 +342,6 @@ function main()
             echo $cmd   
         fi
     fi
-    sexit 0
 }
 
 pathVar="PATH"
@@ -361,7 +362,7 @@ while getopts "h?acdvqte:" opt; do
     case "$opt" in
         h|\?)
             scriptUsage
-            sexit 0
+            return $rval
             ;;
         c)  isClean=1; quiet=1
             ;;            
@@ -382,5 +383,6 @@ done
 shift $((OPTIND-1))
 [ "$1" = "--" ] && shift
 main "$1" "$2"
+return $rval
 # - End of bash script.
 

@@ -21,13 +21,11 @@ memoFile="${memoFile/#\~/$HOME}"
 
 #------------------------------------------------------------------------
 # Terminate the script or the command shell
+#   Usage: sexit [value]; if [[ $exiting -ne 0 ]]; then return; fi
 function sexit()
 {
-    export rval=$1
-    if [[ $inshell -eq 1 ]]; then
-        kill -INT $$
-    fi
-    exit $1
+    rval=$1
+    exiting=1
 }
 
 # echo text if not quiet
@@ -262,7 +260,8 @@ while getopts "hl?qvt" opt; do
     case "$opt" in
         l)  echo "- memoFile="$memoFile""
             cat "$memoFile"
-            sexit 0
+            scriptUsage
+            return $rval
             ;;       
         v)  verbose=1
             ;;
@@ -272,7 +271,7 @@ while getopts "hl?qvt" opt; do
             ;;    	
         h|\?)
             scriptUsage
-            sexit 0
+            return $rval
             ;;
     esac
 done
