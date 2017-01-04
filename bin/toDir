@@ -2,10 +2,9 @@
 # ----------------------------------------------------------------------------
 # Go to a directory based on past history.
 # ----------------------------------------------------------------------------
-# V1.0 - 11 Sep 2016
+# V1.1 - 04 Jan 2017
 # ----------------------------------------------------------------------------
-# John Fogarty - MIT License or
-# Free License 1.0.0 - NO rights reserved.
+# John Fogarty - MIT License or Free License 1.0.0 - NO rights reserved.
 # ----------------------------------------------------------------------------
 
 declare fullScriptName=$_
@@ -17,6 +16,7 @@ declare trial=0
 declare quiet=0
 declare inshell=0
 declare memoFile="~/etc/toDirs.txt"
+declare tmpFile="/tmp/out_${docName}_$$"
 memoFile="${memoFile/#\~/$HOME}"
 
 #------------------------------------------------------------------------
@@ -46,6 +46,22 @@ function vecho()
 	fi
 }
 
+# printf text if not quiet
+function qprintf()
+{
+	if [[ $quiet -eq 0 ]]; then
+		printf "$@"
+	fi
+}
+
+# printf text if in verbose mode.
+function vprintf()
+{
+	if [[ $verbose -eq 1 ]]; then
+		printf "$@"
+	fi
+}
+
 # execute a command (or display it if not sourced to the shell.
 function runinshell()
 {
@@ -64,7 +80,7 @@ function prependLine()
 {
 	local line="$1"
 	local theFile="$2"
-	echo "$line"|cat - "$theFile" > /tmp/out && mv /tmp/out "$theFile"
+	echo "$line"|cat - "$theFile" > "$tmpFile" && mv "$tmpFile" "$theFile"
 }
 
 # remove a matching line from anywhere in the file.
@@ -72,7 +88,7 @@ function removeLine()
 {
 	local line="${1//\//\\\/}"
 	local theFile="$2"
-	sed "/^$line\$/d" "$memoFile" > /tmp/out && mv /tmp/out "$theFile"
+	sed "/^$line\$/d" "$memoFile" > "$tmpFile" && mv "$tmpFile" "$theFile"
 }
 
 #------------------------------------------------------------------------
@@ -114,12 +130,57 @@ function addDir()
     prependLine "$wd" "$memoFile"
 }
 
+function deleteFile()
+{
+    local theFile="$1"
+    if [[ -n "$theFile" ]]; then
+        if [[ -e "$theFile" ]]; then
+            rm "$theFile"
+        fi
+    fi
+}
+
+# Removes any non-existant directories from the list
+function cleanDirs()
+{
+    local removeStuff=0
+    local dirPath
+    local d='directory'
+    local c=0
+    while read dirPath
+    do
+        if [[ -n "$dirPath" ]]; then # Allow blank lines
+            if [[ ! -e "$dirPath" ]]; then
+                qprintf "%s Missing Directory [%s]\n" '*' $dirPath
+                if [[ $removeStuff -eq 1 ]]; then d='directories'; fi
+                removeStuff=1
+                let c+=1
+            fi
+        fi
+    done < "$memoFile"
+    if [[ $removeStuff -eq 1 ]]; then
+        vprintf "%s Removing %d non-existent %s from %s\n" '-' $c $d "$memoFile"
+        deleteFile "$tmpFile"
+        while read dirPath; do
+            if [[ -z "$dirPath" ]]; then # Allow blank lines
+                echo "$dirPath" >> "$tmpFile"
+            else
+                if [[ -e "$dirPath" ]]; then
+                    echo "$dirPath" >> "$tmpFile"
+                fi
+            fi
+        done < "$memoFile"        
+        mv "$tmpFile" "$memoFile"
+    fi
+}
+
 function main()
 {
 	local dirName="$1"
 	local wd=`pwd`
 
 	if [[ -e "$memoFile" ]]; then
+	    cleanDirs
     	addDir "$wd"
    	else
 		vecho "- New memo file: [$memoFile]"
@@ -165,9 +226,20 @@ function main()
            			addDir "$dest"
                     vecho "* CHDIR [$dest]"
            		else
-				    echo "Sorry, [$dirName] not found in $memoFile."
-				    if [[ $verbose -eq 1 ]]; then
-					    cat "$memoFile"
+           			for localDirName in */ ; do
+           			    if [[ -z $dest ]]; then 
+               			    if [[ $localDirName == *"$dirName"* ]]; then
+                       			dest=`readlink -f "$localDirName"`
+                       			addDir "$dest"
+                                vecho "* CHDIR [$dest]"               			        
+               			    fi
+               			fi
+                	done
+                	if [[ -z $dest ]]; then 
+				        echo "Sorry, [$dirName] not found in $memoFile."
+				        if [[ $verbose -eq 1 ]]; then
+					        cat "$memoFile"
+				        fi
 				    fi
 				fi
 			fi

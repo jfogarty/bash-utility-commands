@@ -2,10 +2,9 @@
 # ----------------------------------------------------------------------------
 # Display and modify the a PATH environment variable.
 # ----------------------------------------------------------------------------
-# V0.9 - 9 Sep 2016
+# V1.0 - 03 Jan 2017
 # ----------------------------------------------------------------------------
-# John Fogarty - MIT License or
-# Free License 1.0.0 - NO rights reserved.
+# John Fogarty - MIT License or Free License 1.0.0 - NO rights reserved.
 # ----------------------------------------------------------------------------
 
 declare fullScriptName=$_
@@ -146,7 +145,7 @@ function run()
 #------------------------------------------------------------------------
 # Checks to see if an entry is in an array.
 # containsElement "text" "${arrayname[@]}"
-function containsElement ()
+function containsElement()
 {
   local e
   for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
@@ -156,7 +155,7 @@ function containsElement ()
 #------------------------------------------------------------------------
 # Joins an array by a char - results in rv.
 # join_by "char" "${arrayname[@]}"
-function join_by 
+function join_by()
 {
     local IFS="$1"
     shift
@@ -166,7 +165,7 @@ function join_by
 #------------------------------------------------------------------------
 # Checks to see if a directory is the same as another.
 # return 0 (success) if the directories are the same
-function dirMatches
+function dirMatches()
 {
     local dir1=$1
     local dir2=$2
@@ -179,7 +178,7 @@ function dirMatches
 #------------------------------------------------------------------------
 # Checks to see if a duplicate directory is in path.
 # return 0 (success) if duplicate exists
-function checkDup
+function checkDup()
 {
     local dir=$1
     local e
@@ -193,7 +192,7 @@ function checkDup
 
 #------------------------------------------------------------------------
 # Display a path as multiple lines.
-function showPath
+function showPath()
 {
     local pvar=$1
     local dirDesc
@@ -235,7 +234,7 @@ function showPath
 
 #------------------------------------------------------------------------
 # Delete a directory from the path.
-function deleteFromPath
+function deleteFromPath()
 {
     local pvar=$1
     local delDir=$2
@@ -260,7 +259,7 @@ function deleteFromPath
 
 #------------------------------------------------------------------------
 # Add a directory to the front or back of a path.
-function addToPath
+function addToPath()
 {
     local pvar=$1
     local addDir=$2
@@ -312,7 +311,7 @@ function scriptUsage()
 function main()
 {
     local dirName=$1
-    if [[ x$dirName == x ]]; then
+    if [[ -z "$dirName" ]]; then
         vecho "- Current directories in [${pathVar}]."
         showPath "$pathVar"
         vecho "- Done [$scriptName] on '$pathVar'"
