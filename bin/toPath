@@ -57,6 +57,22 @@ function vecho()
     fi
 }
 
+# printf text if not quiet
+function qprintf()
+{
+	if [[ $quiet -eq 0 ]]; then
+		printf "$@"
+	fi
+}
+
+# printf text if in verbose mode.
+function vprintf()
+{
+	if [[ $verbose -eq 1 ]]; then
+		printf "$@"
+	fi
+}
+
 #------------------------------------------------------------------------
 # Terminate the script with a failure message.
 function fail()
@@ -197,17 +213,31 @@ function showPath()
 {
     local pvar=$1
     local dirDesc
-    let lineno=0
-    local fixed=""
     local contents=${!pvar}
+    local dc=0
+    local dch=0
+    local fc=0
+    local fch=0
+    local total_dc=0
+    local total_dch=0
+    local total_fc=0
+    local total_fch=0
+    local tp=0
+    local isOk=0
+    local fmt
     newDirectories=()
     IFS=':' read -r -a pathDirectories <<< "$contents"
     if [[ $terse -eq 1 ]]; then
         echo "${contents}"
     else
-        for dir in "${pathDirectories[@]}"
-        do
-            let lineno+=1
+        vecho "      Dirs (hidden) Files (hidden)   Path"
+        vecho "      ----  -----   -----  -----     ----"    
+        for dir in "${pathDirectories[@]}"; do
+            isOk=0
+            dc=0
+            dch=0
+            fc=0
+            fch=0
             dirDesc=""
             if [[ -e "$dir" ]]; then
                 if [[ ! -d "$dir" ]]; then
@@ -218,18 +248,34 @@ function showPath()
                         dirDesc="*DUPILICATE* $dirDesc"
                         didSomething=1
                     fi
+                    isOk=1
                 fi
             else
                 dirDesc="*MISSING* $dirDesc"
                 didSomething=1
             fi
-            fixed="    $lineno"
             if [[ $verbose -eq 1 ]]; then 
-                qecho "${fixed:(-4)}: [$dir] $dirDesc"
+                if [[ -n "$dir" ]]; then
+                    let tp+=1
+                    if [[ $isOk -eq 1 ]]; then
+                         dc=`find "$dir" -maxdepth 1 -type d            | wc -l`
+                        dch=`find "$dir" -maxdepth 1 -type d -name '.*' | wc -l`
+                         fc=`find "$dir" -maxdepth 1 -type f            | wc -l`
+                        fch=`find "$dir" -maxdepth 1 -type f -name '.*' | wc -l`
+                    fi
+                    fmt="%4i:%5i  %-6s %6i  %-6s    \"%s\" %s\n" 
+                    qprintf "$fmt" $tp $dc "($dch)" $fc "($fch)" "$dir" "$dirDesc"
+                    let total_dc+=dc
+                    let total_dch+=dch
+                    let total_fc+=fc
+                    let total_fch+=fch
+                fi    
             else
                 echo "$dir $dirDesc"
             fi
         done
+        local fmt="%sTotal of %i directories (%i hidden), %i files (%i hidden) in %i paths."
+        vprintf "$fmt\n" '- ' $total_dc $total_dch $total_fc $total_fch $tp
     fi
 }
 
