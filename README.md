@@ -16,6 +16,7 @@ Check the [releases page](https://github.com/jfogarty/bash-utility-commands/rele
 - **md** : Make a directory and subdirectories
 - **ipv6** : Dynamically enable and disable IPV6 interfaces
 - **tpad** : Enable or disable the touchpad
+- **osinfo** : Display operating system info
 
 Each command supports -? for documentation.
 

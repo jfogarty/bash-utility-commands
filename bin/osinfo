@@ -1,0 +1,25 @@
+#!/bin/bash
+# List some system info.
+# -----------------------------------------------------------------------------
+# Bash utility tools
+# -----------------------------------------------------------------------------
+# John Fogarty - https://github.com/jfogarty - johnhenryfogarty@gmail.com
+# ----------------------------------------------------------------------------
+
+function line()
+{ 
+    local 
+	echo ---------------------------------------------------------------------
+	if [[ -n $1 ]]; then 
+		echo ----- $1 -----
+    	eval "$@"
+    fi
+}
+
+echo "- Operating System info for $USER"
+line "lsb_release -a"
+line "cat /etc/lsb-release" 
+line "cat /etc/os-release"
+line
+
+# - End of Bash script
