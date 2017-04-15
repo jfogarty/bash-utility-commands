@@ -2,8 +2,25 @@
 
 # JF: 11-apr-2017
 # export GOPATH=/home/$USER/go
+
+function formatsecs() {
+  ((h=${1}/3600))
+  ((m=(${1}%3600)/60))
+  ((s=${1}%60))
+  printf "%02d:%02d:%02d\n" $h $m $s
+}
+
 alias t='. toDir'
 alias path='. toPath'
+alias getStartTime='STARTTIME=$(date +%s)'
+alias getElapsedTime='((ELAPSED=$(date +%s) - $STARTTIME))'
+alias showElapsedTime='echo "- Elapsed time: $(formatsecs $ELAPSED)"'
+alias elapsedTime='getElapsedTime ; showElapsedTime'
+
+alias makeall='getStartTime ; makebook -a ; makebook -af ; elapsedTime'
+alias pub='getStartTime ; makebook epub ; elapsedTime'
+alias book='getStartTime ; makebook book ; elapsedTime'
+
 alias np='tpad 0'
 alias ff='find . -type f -name'
 alias ll='LC_COLLATE=C ls --group-directories-first -l'
