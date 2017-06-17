@@ -3,18 +3,32 @@
 # JF: 11-apr-2017
 # export GOPATH=/home/$USER/go
 
-function formatsecs() {
-  ((h=${1}/3600))
-  ((m=(${1}%3600)/60))
-  ((s=${1}%60))
-  printf "%02d:%02d:%02d\n" $h $m $s
+function displaytime() {
+  local T=$1
+  local D=$((T/60/60/24))
+  local H=$((T/60/60%24))
+  local M=$((T/60%60))
+  local S=$((T%60))
+  [[ $D > 0 ]] && printf '%d days ' $D
+  [[ $H > 0 ]] && printf '%d hours ' $H
+  [[ $M > 0 ]] && printf '%d minutes ' $M
+  [[ $D > 0 || $H > 0 || $M > 0 ]] && printf 'and '
+  printf '%d seconds\n' $S
+}
+
+function displaytime2() {
+  local T=$1
+  local H=$((T/60/60))
+  local M=$((T/60%60))
+  local S=$((T%60))
+  printf "%02d:%02d:%02d\n" $H $M $S
 }
 
 alias t='. toDir'
 alias path='. toPath'
 alias getStartTime='STARTTIME=$(date +%s)'
 alias getElapsedTime='((ELAPSED=$(date +%s) - $STARTTIME))'
-alias showElapsedTime='echo "- Elapsed time: $(formatsecs $ELAPSED)"'
+alias showElapsedTime='echo "- Elapsed time: $(displaytime $ELAPSED)"'
 alias elapsedTime='getElapsedTime ; showElapsedTime'
 
 alias makeall='getStartTime ; makebook -a ; makebook -af ; elapsedTime'

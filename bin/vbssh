@@ -1,0 +1,113 @@
+#!/bin/bash
+# ----------------------------------------------------------------------------
+# SSH to a specific VirtualBox virtual machine instance with automatic IP lookup.
+# ----------------------------------------------------------------------------
+# V1.0 - 03 Jan 2017
+# ----------------------------------------------------------------------------
+# John Fogarty - MIT License or Free License 1.0.0 - NO rights reserved.
+# ----------------------------------------------------------------------------
+
+fullScriptName=$_
+scriptName=$0
+
+#------------------------------------------------------------------------
+# Populate an array with the list of available running virtual machines.
+declare -a vmNames
+declare -a vmIds
+populateVms() 
+{
+	declare -a vmmm
+	local IFS=$'\n'
+	vmmm=($(vboxmanage list runningvms))
+
+	# Each entry is a line like: "vname" {22bfdcbd-d45c-481c-840c-050bd0ce3cde}
+	IFS="{"
+	for i in "${vmmm[@]}"
+	do
+	   read -ra vmLine <<< "$i"o
+	   # Strip leading and trailing quotes and spaces
+	   local vmName=$(echo ${vmLine[0]} | sed -e 's/^\s*"//'  -e 's/"\s*$//')
+	   local vid="${vmLine[1]}"
+  	   vmNames+=(${vmName})
+ 	   vmIds+=("{${vid}")
+	done
+}
+
+#------------------------------------------------------------------------
+startSSH()
+{
+	local vm=$1
+	echo "----------- Start SSH for $vm -----------"
+	# Returns an IP address as "Value: xxx.xxx.xxx.xxx"
+	rv="`vboxmanage guestproperty get $vm "/VirtualBox/GuestInfo/Net/0/V4/IP"`"
+	ip=${rv:7}
+
+	echo "- Machine [$vm] IP: [$ip]"
+	cmd="ssh $USERNAME@$ip"
+	$cmd
+}
+
+#------------------------------------------------------------------------
+scriptUsage()
+{
+	echo "Usage: $scriptName [vm]"
+	echo "SSH to a specific VM with a dynamically discovered IP address"
+	echo "The VM is selected by specifying any part of the name."
+	echo ""
+	echo "Note - The virtual machine must have VBoxService running or it will not"
+	echo "export the IP address and all will be lost."
+	echo ""
+	echo "The currently running VMs are:"
+	vboxmanage list runningvms
+	exit
+}
+
+#------------------------------------------------------------------------
+strindex() {
+  local x="$1"
+  local y="$2"
+  local z="${x%%$y*}"
+  if [[ $x == $z ]]; then
+  	rv=-1
+  else
+  	rv=${#z}
+  fi
+}
+
+#------------------------------------------------------------------------
+strindexi() {
+  local x=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+  local y=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+  local z="${x%%$y*}"
+  if [[ $x == $z ]]; then
+  	rv=-1
+  else
+  	rv=${#z}
+  fi
+}
+
+#------------------------------------------------------------------------
+main()
+{
+	local vmSelection=$1
+	local vmName
+	if [ x"$vmSelection" == "x" ]; 
+	then
+		scriptUsage 
+	fi
+
+	populateVms
+	for vmName in "${vmNames[@]}"
+	do
+		strindexi "$vmName" "$vmSelection"
+		if (( rv > 0 ));
+		then
+			startSSH "$vmName"
+			exit 0
+		fi
+	done
+}
+
+#------------------------------------------------------------------------
+main $1
+scriptUsage

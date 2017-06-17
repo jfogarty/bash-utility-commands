@@ -17,6 +17,7 @@ Check the [releases page](https://github.com/jfogarty/bash-utility-commands/rele
 - **ipv6** : Dynamically enable and disable IPV6 interfaces
 - **tpad** : Enable or disable the touchpad
 - **osinfo** : Display operating system info
+- **vbssh** : Log into a Virtual Box VM via ssh
 
 Each command supports -? for documentation.
 
@@ -156,6 +157,22 @@ Enable or disable the ASUS R510D Touchpad
     ↳ AT Translated Set 2 keyboard            	id=16	[slave  keyboard (3)]
 
 Touchpad is device [17]
+```
+
+
+### `vbssh` 
+
+Utility to log into a Virtal Box VM with the same user you are currently
+using. Does dynamic discovery of the IP address of the VM for convenience.
+
+```
+vbssh -?
+Usage: /home/john/bin/vbssh [vm]
+SSH to a specific VM with a dynamically discovered IP address
+The VM is selected by specifying any part of the name.
+
+Note - The virtual machine must have VBoxService running or it will not
+export the IP address and all will be lost.
 ```
 
 ## Systems
