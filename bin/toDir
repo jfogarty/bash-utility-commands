@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------
 # Go to a directory based on past history.
 # ----------------------------------------------------------------------------
-# V1.1 - 04 Jan 2017
+# V1.2 - 23 Jul 2017
 # ----------------------------------------------------------------------------
 # John Fogarty - MIT License or Free License 1.0.0 - NO rights reserved.
 # ----------------------------------------------------------------------------
@@ -148,10 +148,14 @@ function cleanDirs()
     while read dirPath; do
         if [[ -n "$dirPath" ]]; then # Allow blank lines
             if [[ ! -e "$dirPath" ]]; then
-                qprintf "%s Missing Directory [%s]\n" '*' $dirPath
-                if [[ $removeStuff -eq 1 ]]; then d='directories'; fi
-                removeStuff=1
-                let c+=1
+                if [[ $dirPath == /media/* ]]; then
+                    vprintf "%s Skipped Media Directory [%s]\n" '*' $dirPath
+                else
+                    qprintf "%s Missing directory [%s]\n" '*' $dirPath
+                    if [[ $removeStuff -eq 1 ]]; then d='directories'; fi
+                    removeStuff=1
+                    let c+=1
+                fi
             fi
         fi
     done < "$memoFile"
