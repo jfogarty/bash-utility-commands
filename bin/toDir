@@ -2,7 +2,6 @@
 # ----------------------------------------------------------------------------
 # Go to a directory based on past history.
 # ----------------------------------------------------------------------------
-# V1.2 - 23 Jul 2017
 # ----------------------------------------------------------------------------
 # John Fogarty - MIT License or Free License 1.0.0 - NO rights reserved.
 # ----------------------------------------------------------------------------
@@ -303,7 +302,11 @@ function main()
 			fi
 		fi
 		if [[ -n "$dest" ]]; then 
-			runinshell "cd \"$dest\""
+            if [[ -e "$dest" ]]; then
+            	runinshell "cd \"$dest\""
+            else
+                qprintf "%s Directory [%s] is missing or the volume is offline.\n" '*' $dest
+            fi		
 		fi
 	else
 		if [[ $verbose -eq 1 ]]; then
